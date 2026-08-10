@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Chat Service Dashboard & Playground</title>
+  <meta name="description" content="Hệ thống Cloud Chat Service với bảo mật Bearer token, Rate Limiter token bucket và Cost Guard theo ngày.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-bg: rgba(15, 23, 42, 0.65);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover-border: rgba(99, 102, 241, 0.4);
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+      --accent-cyan: #06b6d4;
+      --emerald: #10b981;
+      --rose: #f43f5e;
+      --amber: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --user-msg-bg: rgba(99, 102, 241, 0.15);
+      --bot-msg-bg: rgba(30, 41, 59, 0.7);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      background: rgba(9, 13, 22, 0.8);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--primary-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: #fff;
+    }
+
+    .brand-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-tag {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      font-weight: 500;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 1.25rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .glass-card:hover {
+      border-color: var(--card-hover-border);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .card-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-badge.online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-badge.offline {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: currentColor;
+      box-shadow: 0 0 10px currentColor;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Auth & Settings Bar */
+    .config-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--card-border);
+      padding: 1rem 1.25rem;
+      border-radius: 16px;
+    }
+
+    .input-group {
+      display: flex;
+      flex: 1;
+      min-width: 240px;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .input-group label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-field {
+      width: 100%;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 0.6rem 1rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.5rem;
+      position: absolute;
+      right: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-icon:hover {
+      color: var(--text-main);
+    }
+
+    .btn-refresh {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.65rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+      align-self: flex-end;
+    }
+
+    .btn-refresh:hover {
+      background: rgba(99, 102, 241, 0.3);
+      color: #fff;
+    }
+
+    /* Chat Playground */
+    .chat-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 18px;
+      overflow: hidden;
+      min-height: 480px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    }
+
+    .chat-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .chat-header-title {
+      font-weight: 600;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .chat-stream {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      max-height: 460px;
+    }
+
+    .message-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      max-width: 80%;
+    }
+
+    .message-row.user {
+      align-self: flex-end;
+    }
+
+    .message-row.assistant {
+      align-self: flex-start;
+    }
+
+    .message-bubble {
+      padding: 0.9rem 1.2rem;
+      border-radius: 14px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .user .message-bubble {
+      background: var(--primary-gradient);
+      color: #ffffff;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+
+    .assistant .message-bubble {
+      background: var(--bot-msg-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      border-bottom-left-radius: 4px;
+    }
+
+    .meta-tag {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 0.75rem;
+      padding: 0 0.25rem;
+    }
+
+    .prompt-pills {
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      border-top: 1px solid var(--card-border);
+      background: rgba(15, 23, 42, 0.3);
+    }
+
+    .pill {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 0.4rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pill:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #a5b4fc;
+    }
+
+    .chat-input-area {
+      padding: 1rem 1.5rem;
+      display: flex;
+      gap: 0.75rem;
+      background: rgba(15, 23, 42, 0.7);
+      border-top: 1px solid var(--card-border);
+    }
+
+    .chat-input {
+      flex: 1;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      color: var(--text-main);
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+      height: 46px;
+      max-height: 120px;
+    }
+
+    .chat-input:focus {
+      border-color: #6366f1;
+    }
+
+    .btn-send {
+      background: var(--primary-gradient);
+      border: none;
+      color: #ffffff;
+      padding: 0 1.5rem;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-send:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+
+    .btn-send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Toast & Error Alerts */
+    .alert-box {
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .alert-error {
+      background: rgba(244, 63, 94, 0.15);
+      color: #f43f5e;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .alert-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">Cloud Chat Dashboard</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">FastAPI • Redis • Docker Multi-Stage</div>
+      </div>
+    </div>
+    <div class="brand-tag">Checkpoint 5 Live System</div>
+  </header>
+
+  <div class="container">
+
+    <!-- Config & Auth Bar -->
+    <div class="config-bar">
+      <div class="input-group">
+        <label for="apiTokenInput">AUTHORIZATION BEARER TOKEN</label>
+        <div class="input-wrapper">
+          <input type="password" id="apiTokenInput" class="input-field" placeholder="Nhập API Token của bạn (ví dụ: token-sec-key)">
+          <button type="button" class="btn-icon" id="toggleTokenBtn" title="Hiện/Ẩn Token">
+            👁️
+          </button>
+        </div>
+      </div>
+      <div class="input-group" style="max-width: 200px;">
+        <label for="clientIdInput">CLIENT ID (X-Client-Id)</label>
+        <input type="text" id="clientIdInput" class="input-field" value="sv01" placeholder="sv01">
+      </div>
+      <button id="btnRefreshHealth" class="btn-refresh">
+        <span>🔄</span> Làm Mới Metrics
+      </button>
+    </div>
+
+    <!-- System Metrics Grid -->
+    <div class="dashboard-grid">
+      <!-- Liveness -->
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title">Liveness Probe (/healthz)</span>
+          <span id="healthzBadge" class="status-badge offline">
+            <span class="pulse-dot"></span> Checking
+          </span>
+        </div>
+        <div class="card-value" id="healthzStatus">—</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;" id="healthzSub">—</div>
+      </div>
+
+      <!-- Readiness -->
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title">Readiness Probe (/readyz)</span>
+          <span id="readyzBadge" class="status-badge offline">
+            <span class="pulse-dot"></span> Checking
+          </span>
+        </div>
+        <div class="card-value" id="readyzStatus">—</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;" id="readyzSub">Redis Connection State</div>
+      </div>
+
+      <!-- Session Spend -->
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title">Tổng Chi Phí Session ($)</span>
+          <span style="font-size: 1.2rem;">💰</span>
+        </div>
+        <div class="card-value" id="totalCostDisplay">$0.000000</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;" id="turnsCountDisplay">0 lượt trò chuyện</div>
+      </div>
+
+      <!-- Token Usage -->
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title">Token Usage</span>
+          <span style="font-size: 1.2rem;">⚡</span>
+        </div>
+        <div class="card-value" id="totalTokensDisplay">0 tok</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;" id="tokensDetailDisplay">Prompt: 0 | Comp: 0</div>
+      </div>
+    </div>
+
+    <!-- Chat Playground -->
+    <div class="chat-section">
+      <div class="chat-header">
+        <div class="chat-header-title">
+          <span>💬</span> Interactive Chat Playground
+        </div>
+        <button id="btnClearChat" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem;">
+          🧹 Xóa lịch sử
+        </button>
+      </div>
+
+      <!-- Stream -->
+      <div class="chat-stream" id="chatStream">
+        <div class="message-row assistant">
+          <div class="message-bubble">
+            Xin chào! Tôi là AI Chat Assistant running trên hạ tầng Cloud. Hãy nhập <strong>API Token</strong> ở thanh cấu hình phía trên và bắt đầu trò chuyện!
+          </div>
+          <div class="meta-tag">System Ready</div>
+        </div>
+      </div>
+
+      <!-- Suggestion Pills -->
+      <div class="prompt-pills">
+        <span class="pill" data-prompt="Docker là gì và vì sao nên dùng multi-stage build?">🐳 Docker & Multi-stage</span>
+        <span class="pill" data-prompt="Giải thích thuật toán Token Bucket rate limit?">🪣 Token Bucket</span>
+        <span class="pill" data-prompt="Vì sao nên tách /healthz và /readyz trên Kubernetes/Cloud?">❤️ Healthz vs Readyz</span>
+        <span class="pill" data-prompt="Cách deploy ứng dụng FastAPI lên Cloud Render?">🚀 Deploy Render</span>
+      </div>
+
+      <!-- Input Area -->
+      <div class="chat-input-area">
+        <textarea id="chatInput" class="chat-input" placeholder="Nhập tin nhắn của bạn (Ctrl + Enter để gửi)..." rows="1"></textarea>
+        <button id="btnSend" class="btn-send">
+          <span>Gửi</span>
+          <span>➔</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Elements
+    const apiTokenInput = document.getElementById('apiTokenInput');
+    const clientIdInput = document.getElementById('clientIdInput');
+    const toggleTokenBtn = document.getElementById('toggleTokenBtn');
+    const btnRefreshHealth = document.getElementById('btnRefreshHealth');
+    
+    const healthzBadge = document.getElementById('healthzBadge');
+    const healthzStatus = document.getElementById('healthzStatus');
+    const healthzSub = document.getElementById('healthzSub');
+    
+    const readyzBadge = document.getElementById('readyzBadge');
+    const readyzStatus = document.getElementById('readyzStatus');
+    const readyzSub = document.getElementById('readyzSub');
+
+    const totalCostDisplay = document.getElementById('totalCostDisplay');
+    const turnsCountDisplay = document.getElementById('turnsCountDisplay');
+    const totalTokensDisplay = document.getElementById('totalTokensDisplay');
+    const tokensDetailDisplay = document.getElementById('tokensDetailDisplay');
+
+    const chatStream = document.getElementById('chatStream');
+    const chatInput = document.getElementById('chatInput');
+    const btnSend = document.getElementById('btnSend');
+    const btnClearChat = document.getElementById('btnClearChat');
+
+    // Metrics State
+    let sessionCost = 0;
+    let sessionTurns = 0;
+    let sessionPromptTokens = 0;
+    let sessionCompTokens = 0;
+
+    // Load saved settings
+    if (localStorage.getItem('day12_api_token')) {
+      apiTokenInput.value = localStorage.getItem('day12_api_token');
+    }
+    if (localStorage.getItem('day12_client_id')) {
+      clientIdInput.value = localStorage.getItem('day12_client_id');
+    }
+
+    // Save on change
+    apiTokenInput.addEventListener('change', () => {
+      localStorage.setItem('day12_api_token', apiTokenInput.value.trim());
+    });
+    clientIdInput.addEventListener('change', () => {
+      localStorage.setItem('day12_client_id', clientIdInput.value.trim());
+    });
+
+    // Toggle token visibility
+    toggleTokenBtn.addEventListener('click', () => {
+      apiTokenInput.type = apiTokenInput.type === 'password' ? 'text' : 'password';
+    });
+
+    // Fetch Healthz & Readyz
+    async function checkHealthAndReadiness() {
+      // 1. Healthz
+      try {
+        const resH = await fetch('/healthz');
+        const dataH = await resH.json();
+        if (resH.status === 200) {
+          healthzBadge.className = 'status-badge online';
+          healthzBadge.innerHTML = '<span class="pulse-dot"></span> 200 OK';
+          healthzStatus.textContent = 'Process Alive';
+          healthzSub.textContent = `${dataH.service || 'chat'} v${dataH.version || '1.0.0'}`;
+        } else {
+          healthzBadge.className = 'status-badge offline';
+          healthzBadge.innerHTML = '<span class="pulse-dot"></span> 503 Service Unavailable';
+          healthzStatus.textContent = 'Draining';
+          healthzSub.textContent = 'Server status is draining';
+        }
+      } catch (err) {
+        healthzBadge.className = 'status-badge offline';
+        healthzBadge.innerHTML = '<span class="pulse-dot"></span> Unreachable';
+        healthzStatus.textContent = 'Error';
+        healthzSub.textContent = 'Failed to connect to /healthz';
+      }
+
+      // 2. Readyz
+      try {
+        const resR = await fetch('/readyz');
+        const dataR = await resR.json();
+        if (resR.status === 200 && dataR.redis) {
+          readyzBadge.className = 'status-badge online';
+          readyzBadge.innerHTML = '<span class="pulse-dot"></span> Ready';
+          readyzStatus.textContent = 'Redis Connected';
+          readyzSub.textContent = 'Database state: Healthy';
+        } else {
+          readyzBadge.className = 'status-badge offline';
+          readyzBadge.innerHTML = '<span class="pulse-dot"></span> Not Ready';
+          readyzStatus.textContent = 'Redis Offline';
+          readyzSub.textContent = 'Redis connection failed';
+        }
+      } catch (err) {
+        readyzBadge.className = 'status-badge offline';
+        readyzBadge.innerHTML = '<span class="pulse-dot"></span> Unreachable';
+        readyzStatus.textContent = 'Error';
+        readyzSub.textContent = 'Failed to connect to /readyz';
+      }
+    }
+
+    btnRefreshHealth.addEventListener('click', checkHealthAndReadiness);
+    checkHealthAndReadiness();
+    setInterval(checkHealthAndReadiness, 10000);
+
+    // Send Message
+    async function sendMessage() {
+      const msg = chatInput.value.trim();
+      const token = apiTokenInput.value.trim();
+      const clientId = clientIdInput.value.trim() || 'sv01';
+
+      if (!msg) return;
+
+      if (!token) {
+        appendAlert('Lỗi: Bạn chưa điền Authorization Bearer Token ở thanh cấu hình phía trên!', 'alert-error');
+        return;
+      }
+
+      // Render User Message
+      appendMessage('user', msg);
+      chatInput.value = '';
+      btnSend.disabled = true;
+
+      // Loading Indicator
+      const loadingRow = appendMessage('assistant', '🤖 Đang xử lý tin nhắn...');
+
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'X-Client-Id': clientId
+          },
+          body: JSON.stringify({ message: msg })
+        });
+
+        chatStream.removeChild(loadingRow);
+
+        if (res.status === 200) {
+          const data = await res.json();
+          appendMessage('assistant', data.reply, data);
+          
+          // Update Session Stats
+          sessionCost += (data.usd_cost || 0);
+          sessionTurns += 1;
+          sessionPromptTokens += (data.usage?.prompt || 0);
+          sessionCompTokens += (data.usage?.completion || 0);
+
+          totalCostDisplay.textContent = `$${sessionCost.toFixed(6)}`;
+          turnsCountDisplay.textContent = `${sessionTurns} lượt trò chuyện`;
+          totalTokensDisplay.textContent = `${sessionPromptTokens + sessionCompTokens} tok`;
+          tokensDetailDisplay.textContent = `Prompt: ${sessionPromptTokens} | Comp: ${sessionCompTokens}`;
+
+        } else if (res.status === 401) {
+          appendAlert('❌ 401 Unauthorized: API Token không hợp lệ hoặc thiếu header Authorization Bearer.', 'alert-error');
+        } else if (res.status === 429) {
+          appendAlert('⚠️ 429 Too Many Requests: Bạn đã gọi quá nhanh! Xô Token Bucket đã cạn.', 'alert-warning');
+        } else if (res.status === 402) {
+          appendAlert('💳 402 Payment Required: Ngân sách chi tiêu trong ngày của Client ID này đã hết!', 'alert-warning');
+        } else if (res.status === 503) {
+          appendAlert('⛔ 503 Service Unavailable: Hệ thống chưa kết nối được Redis hoặc đang graceful shutdown.', 'alert-error');
+        } else {
+          const errText = await res.text();
+          appendAlert(`⚠️ Lỗi HTTP ${res.status}: ${errText}`, 'alert-error');
+        }
+
+      } catch (err) {
+        if (loadingRow.parentNode) chatStream.removeChild(loadingRow);
+        appendAlert(`❌ Lỗi mạng: Không thể kết nối tới server — ${err.message}`, 'alert-error');
+      } finally {
+        btnSend.disabled = false;
+        chatStream.scrollTop = chatStream.scrollHeight;
+      }
+    }
+
+    function appendMessage(role, text, metadata = null) {
+      const row = document.createElement('div');
+      row.className = `message-row ${role}`;
+      
+      const bubble = document.createElement('div');
+      bubble.className = 'message-bubble';
+      bubble.textContent = text;
+      row.appendChild(bubble);
+
+      if (metadata && role === 'assistant') {
+        const meta = document.createElement('div');
+        meta.className = 'meta-tag';
+        meta.innerHTML = `
+          <span>💵 $${(metadata.usd_cost || 0).toFixed(6)}</span>
+          <span>⚡ ${metadata.usage?.prompt || 0}p / ${metadata.usage?.completion || 0}c tokens</span>
+          <span>🔄 turns before: ${metadata.turns_before}</span>
+        `;
+        row.appendChild(meta);
+      }
+
+      chatStream.appendChild(row);
+      chatStream.scrollTop = chatStream.scrollHeight;
+      return row;
+    }
+
+    function appendAlert(message, alertClass) {
+      const alert = document.createElement('div');
+      alert.className = `alert-box ${alertClass}`;
+      alert.textContent = message;
+      chatStream.appendChild(alert);
+      chatStream.scrollTop = chatStream.scrollHeight;
+    }
+
+    // Pill click handler
+    document.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        chatInput.value = pill.getAttribute('data-prompt');
+        sendMessage();
+      });
+    });
+
+    btnSend.addEventListener('click', sendMessage);
+
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    btnClearChat.addEventListener('click', () => {
+      chatStream.innerHTML = '';
+      appendMessage('assistant', 'Lịch sử trò chuyện đã được xóa khỏi giao diện.');
+    });
+  </script>
+</body>
+</html>

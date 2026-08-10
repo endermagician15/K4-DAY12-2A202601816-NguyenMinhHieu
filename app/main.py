@@ -17,7 +17,8 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 
 from fastapi import Depends, FastAPI, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from pathlib import Path
 from pydantic import BaseModel, Field
 
 from utils.mock_llm import generate_reply
@@ -32,6 +33,7 @@ from .store import ChatStore, get_redis_client
 
 SERVICE_NAME = "day12-chat-service"
 SERVICE_VERSION = "1.0.0"
+STATIC_INDEX = Path(__file__).parent / "static" / "index.html"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -73,6 +75,17 @@ app = FastAPI(title="Day 12 Chat Service", version=SERVICE_VERSION, lifespan=lif
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+
+
+# ─────────────────────────────────────────────────────────────
+# Web Dashboard & Playground
+# ─────────────────────────────────────────────────────────────
+@app.get("/", response_class=HTMLResponse)
+def root_dashboard():
+    """Trang chủ — trả về giao diện Web Dashboard & Chat Playground."""
+    if STATIC_INDEX.exists():
+        return FileResponse(STATIC_INDEX)
+    return HTMLResponse("<h1>Day 12 Cloud Chat Service Running</h1>")
 
 
 # ─────────────────────────────────────────────────────────────
