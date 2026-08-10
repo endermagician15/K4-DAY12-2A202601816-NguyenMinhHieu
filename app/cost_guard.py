@@ -42,7 +42,11 @@ class CostGuard:
         Key chưa tồn tại → Redis trả None → hàm này phải trả ``0.0``.
         Nhớ ép kiểu ``float(...)`` vì Redis trả về chuỗi.
         """
-        raise NotImplementedError("TODO (CP3): cài đặt spent")
+        key = self._key(client_id, day)
+        value = self.client.get(key)
+        if value is None:
+            return 0.0
+        return float(value)
 
     def check(
         self,
@@ -56,7 +60,12 @@ class CostGuard:
         → raise ``HTTPException(status_code=402, detail="daily budget exceeded")``.
         402 = Payment Required, đúng ngữ nghĩa cho tình huống hết ngân sách.
         """
-        raise NotImplementedError("TODO (CP3): cài đặt check")
+        now = day if day is not None else self.today()
+        if self.spent(client_id, now) + estimated_cost > self.budget:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="daily budget exceeded",
+            )
 
     def record(self, client_id: str, cost: float, day: str | None = None) -> float:
         """Cộng dồn chi phí vừa phát sinh, trả về tổng mới.
@@ -66,7 +75,11 @@ class CostGuard:
           2. ``self.client.expire(key, KEY_TTL_SECONDS)``
           3. ``return float(total)``
         """
-        raise NotImplementedError("TODO (CP3): cài đặt record")
+        now = day if day is not None else self.today()
+        key = self._key(client_id, now)
+        total = self.client.incrbyfloat(key, cost)
+        self.client.expire(key, KEY_TTL_SECONDS)
+        return float(total)
 
     def remaining(self, client_id: str, day: str | None = None) -> float:
         """CHO SẴN — còn bao nhiêu tiền trong ngân sách hôm nay."""

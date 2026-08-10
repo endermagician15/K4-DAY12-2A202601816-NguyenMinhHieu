@@ -44,7 +44,13 @@ class Settings(BaseSettings):
     # TODO (CP1): khai báo 7 trường theo bảng trên, ví dụ:
     #     port: int = 8000
     #     api_token: str
-
+    port : int = 8000
+    api_token : str
+    redis_url : str = "redis://localhost:6379/0"
+    bucket_capacity : int = 10
+    refill_per_minute : int = 10
+    daily_budget_usd : float = 1.0
+    log_level : str = "INFO"
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
