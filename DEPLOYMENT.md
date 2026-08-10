@@ -18,7 +18,7 @@
 
 | Mục | Nội dung |
 |-----|----------|
-| Public URL | https://TODO-thay-bang-url-render-cua-ban.onrender.com |
+| Public URL | https://day12-chat-7x6y.onrender.com |
 | Platform | Render |
 | Ngày deploy | 2026-08-10 |
 
