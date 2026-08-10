@@ -653,7 +653,7 @@
     async function checkHealthAndReadiness() {
       // 1. Healthz
       try {
-        const resH = await fetch('/healthz');
+        const resH = await fetch('/healthz?_t=' + Date.now(), { cache: 'no-store' });
         let dataH = {};
         try { dataH = await resH.json(); } catch (e) {}
 
@@ -682,7 +682,7 @@
 
       // 2. Readyz
       try {
-        const resR = await fetch('/readyz');
+        const resR = await fetch('/readyz?_t=' + Date.now(), { cache: 'no-store' });
         let dataR = {};
         try { dataR = await resR.json(); } catch (e) {}
 
