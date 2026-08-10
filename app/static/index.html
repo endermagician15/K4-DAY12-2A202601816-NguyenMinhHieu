@@ -654,17 +654,24 @@
       // 1. Healthz
       try {
         const resH = await fetch('/healthz');
-        const dataH = await resH.json();
+        let dataH = {};
+        try { dataH = await resH.json(); } catch (e) {}
+
         if (resH.status === 200) {
           healthzBadge.className = 'status-badge online';
           healthzBadge.innerHTML = '<span class="pulse-dot"></span> 200 OK';
           healthzStatus.textContent = 'Process Alive';
           healthzSub.textContent = `${dataH.service || 'chat'} v${dataH.version || '1.0.0'}`;
+        } else if (resH.status === 503) {
+          healthzBadge.className = 'status-badge offline';
+          healthzBadge.innerHTML = '<span class="pulse-dot"></span> 503 Draining';
+          healthzStatus.textContent = 'Draining';
+          healthzSub.textContent = 'Server is draining connections';
         } else {
           healthzBadge.className = 'status-badge offline';
-          healthzBadge.innerHTML = '<span class="pulse-dot"></span> 503 Service Unavailable';
-          healthzStatus.textContent = 'Draining';
-          healthzSub.textContent = 'Server status is draining';
+          healthzBadge.innerHTML = `<span class="pulse-dot"></span> ${resH.status} Error`;
+          healthzStatus.textContent = `HTTP ${resH.status}`;
+          healthzSub.textContent = dataH.status || 'Server error';
         }
       } catch (err) {
         healthzBadge.className = 'status-badge offline';
@@ -676,17 +683,24 @@
       // 2. Readyz
       try {
         const resR = await fetch('/readyz');
-        const dataR = await resR.json();
+        let dataR = {};
+        try { dataR = await resR.json(); } catch (e) {}
+
         if (resR.status === 200 && dataR.redis) {
           readyzBadge.className = 'status-badge online';
-          readyzBadge.innerHTML = '<span class="pulse-dot"></span> Ready';
+          readyzBadge.innerHTML = '<span class="pulse-dot"></span> 200 Ready';
           readyzStatus.textContent = 'Redis Connected';
           readyzSub.textContent = 'Database state: Healthy';
+        } else if (resR.status === 503) {
+          readyzBadge.className = 'status-badge offline';
+          readyzBadge.innerHTML = '<span class="pulse-dot"></span> 503 Not Ready';
+          readyzStatus.textContent = 'Redis Offline';
+          readyzSub.textContent = dataR.status || 'Redis connection failed';
         } else {
           readyzBadge.className = 'status-badge offline';
-          readyzBadge.innerHTML = '<span class="pulse-dot"></span> Not Ready';
-          readyzStatus.textContent = 'Redis Offline';
-          readyzSub.textContent = 'Redis connection failed';
+          readyzBadge.innerHTML = `<span class="pulse-dot"></span> ${resR.status} Error`;
+          readyzStatus.textContent = `HTTP ${resR.status}`;
+          readyzSub.textContent = dataR.status || 'Readiness check failed';
         }
       } catch (err) {
         readyzBadge.className = 'status-badge offline';
