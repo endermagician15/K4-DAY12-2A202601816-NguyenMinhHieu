@@ -74,8 +74,24 @@ done; echo
 Dán output của các lệnh trên vào đây:
 
 ```
+# 1. Liveness Probe (/healthz)
 HTTP/1.1 200 OK
-{"status": "ok", "service": "chat", "version": "1.0.0"}
+Content-Type: application/json
+
+{"status":"ok","service":"day12-chat-service","version":"1.0.0"}
+
+# 2. Readiness Probe (/readyz)
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"status":"ready","redis":true}
+
+# 3. Chat không có token (401 Unauthorized)
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+WWW-Authenticate: Bearer
+
+{"detail":"invalid or missing bearer token"}
 ```
 
 ## Ảnh Chụp Màn Hình
