@@ -9,6 +9,8 @@ phải nằm ở nơi mọi instance cùng nhìn thấy: Redis.
 from __future__ import annotations
 
 import json
+import os
+from urllib.parse import urlparse
 
 import redis
 
@@ -19,18 +21,30 @@ HISTORY_TTL_SECONDS = 3 * 24 * 3600
 
 
 def get_redis_client(url: str | None = None):
-    """CHO SẴN — tạo client Redis từ URL.
-
-    ``fake://`` trả về Redis giả chạy trong RAM, dùng khi máy bạn chưa có
-    Docker. Tiện cho lúc học, nhưng KHÔNG dùng khi deploy: nó vẫn là state
-    trong process, đúng cái mà CP4 đang tìm cách loại bỏ.
-    """
+    """Tạo client Redis từ URL kết nối (hỗ trợ cả fake://, redis://, rediss:// và REDIS_TOKEN)."""
     url = url or get_settings().redis_url
     if url.startswith("fake://"):
         import fakeredis
 
         return fakeredis.FakeRedis(decode_responses=True)
-    return redis.from_url(url, decode_responses=True, socket_connect_timeout=3, socket_timeout=3)
+
+    token = os.getenv("REDIS_TOKEN") or os.getenv("REDIS_PASSWORD") or os.getenv("UPSTASH_REDIS_REST_TOKEN")
+
+    if url.startswith("http://") or url.startswith("https://"):
+        parsed = urlparse(url)
+        host = parsed.hostname or url.split("//")[-1].split("/")[0]
+        pass_str = f":{token}@" if token else ""
+        url = f"rediss://{pass_str}{host}:6379"
+
+    kwargs = {
+        "decode_responses": True,
+        "socket_connect_timeout": 5,
+        "socket_timeout": 5,
+    }
+    if token and "@" not in url:
+        kwargs["password"] = token
+
+    return redis.from_url(url, **kwargs)
 
 
 class ChatStore:
